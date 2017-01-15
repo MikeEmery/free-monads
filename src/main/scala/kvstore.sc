@@ -1,4 +1,3 @@
-import cats.arrow.FunctionK
 import cats.{Id, ~>}
 import scala.collection.mutable
 import cats.free.Free
