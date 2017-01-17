@@ -48,14 +48,18 @@ def valueWriteOperation[T](implicit Kv: KvOps[WriteThruCache], Cache: CacheOps[W
     } yield ()
 }
 
+def withFallback[A[_], T](loadedValue: Option[T], fallback: => Free[A, Option[T]]): Free[A, Option[T]] = {
+  if(loadedValue.isDefined) {
+    Free.pure[A, Option[T]](loadedValue)
+  } else {
+    fallback
+  }
+}
+
 def valueGetOperation[T](implicit Kv: KvOps[WriteThruCache], Cache: CacheOps[WriteThruCache]): ((String) => Free[WriteThruCache, Option[T]]) = {
   (key: String) =>
-    Cache.get[T](key).flatMap(cacheValue =>
-      if(cacheValue.isDefined) {
-        Free.pure(cacheValue)
-      }
-      else {
-        Kv.get[T](key)
-      }
-    )
+    for {
+      cachedOption <- Cache.get[T](key)
+      actualValue <- withFallback[WriteThruCache, T](cachedOption, fallback = Kv.get[T](key))
+    } yield actualValue
 }
